@@ -1,4 +1,13 @@
 # DrLongHealth
+
+## Development notes
+This project uses git submodule. In order to add submodules when cloning repo, first clone the repo, then init submodules:
+
+```bash
+git clone https://github.com/rballachay/DrLongHealth
+git submodule init
+git submodule update
+```
 Code for COMP545 Project: LLM modelling of LongHealth Clinical Notes. This project aims to test out multiple methods for improving the performance of the task of long-document question answering on the corpus LongHealth. We aim to achieve this objective using multiple different techniques:
 
 1. Retriever-reader method using bi-encoder DPR to lookup passages in the clinical notes
