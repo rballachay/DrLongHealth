@@ -1,3 +1,6 @@
 [submodule "data/LongHealth"]
 	path = data/LongHealth
 	url = https://github.com/rballachay/LongHealth.git
+[submodule "src/retrievers/DPR"]
+	path = src/retrievers/DPR
+	url = https://github.com/facebookresearch/DPR

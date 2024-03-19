@@ -8,6 +8,10 @@ git clone https://github.com/rballachay/DrLongHealth
 git submodule init
 git submodule update
 ```
+
+You will also need to have git LFS installed. Follow the instructions [here](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage).  
+
+## Introduction
 Code for COMP545 Project: LLM modelling of LongHealth Clinical Notes. This project aims to test out multiple methods for improving the performance of the task of long-document question answering on the corpus LongHealth. We aim to achieve this objective using multiple different techniques:
 
 1. Retriever-reader method using bi-encoder DPR to lookup passages in the clinical notes
