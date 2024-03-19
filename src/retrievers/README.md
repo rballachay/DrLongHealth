@@ -15,8 +15,16 @@ There are some examples of DPR used in a medical context. I will list these belo
 
 2. [_General-Purpose Retrieval-Enhanced Medical Prediction Model Using Near-Infinite History_](https://arxiv.org/abs/2310.20204). While not DPR exactly, this uses a retrieval model over large amounts of EHR data to perform outcome estimation. This is a great example of using a retriever to get relevant info out of a long medical context.
 
-3. 
+3. [_A large-scale dataset of patient summaries for retrieval-based clinical decision support systems_](https://www.nature.com/articles/s41597-023-02814-8). A DPR model is used for lookup of similar patient records, including the MIMIC-IV dataset with clinical discharge notes, with an average document length of ~1500 words. They use a range of encoders, including bge-base-en-v1.5, MedCPT, PubMedBERT, BERT and SPECTER. 
 
 ### Objectives for this part of the project
 
 1. 
+
+
+## Retrieval-Augmented Generation 
+From the paper [_Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks_](https://arxiv.org/abs/2005.11401). 
+
+### Explanation of the technique 
+
+Retrieval-augmented generation (RAG) is an extension of DPR which combines a parametric question-answering model with a DPR retrieval from some information source like wikipedia. We could technically use this in addition to the other way we are using DPR, which is to retrieve relevant indices from the input corpus.
