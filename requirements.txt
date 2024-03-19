@@ -8,3 +8,4 @@ accelerate==0.28.0
 shortuuid==1.0.13
 tiktoken==0.6.0
 fschat==0.2.36
+fire==0.6.0
