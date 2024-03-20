@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, AutoModelForMaskedLM, EvalPrediction
+from transformers import AutoTokenizer, AutoModelForMaskedLM, EvalPrediction, default_data_collator
 from data.squad import Squad
 from datasets import load_dataset, load_metric
 from functools import partial
@@ -18,11 +18,11 @@ def get_model():
 
     _prepare_validation_features = partial(prepare_validation_features, tokenizer=tokenizer, column_names=column_names)
 
-    train_dataset = train_examples.map(_prepare_validation_features)
+    train_dataset = train_examples.map(_prepare_validation_features,num_proc=4,batched=True,remove_columns=column_names)
 
     _post_processing_function = partial(post_processing_function, answer_column_name=answer_column_name)
 
-    trainer = QuestionAnsweringTrainer(model=model,tokenizer=tokenizer,post_process_function=_post_processing_function, compute_metrics=compute_metrics)
+    trainer = QuestionAnsweringTrainer(model=model,tokenizer=tokenizer,post_process_function=_post_processing_function, compute_metrics=compute_metrics,data_collator=default_data_collator)
 
     results = trainer.predict(train_dataset, train_examples)
     metrics = results.metrics
@@ -87,6 +87,7 @@ def post_processing_function(examples, features, predictions, answer_column_name
             features=features,
             predictions=predictions,
             prefix=stage,
+            n_best_size=20,
         )
         formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
 
