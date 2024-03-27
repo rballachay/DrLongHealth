@@ -1,4 +1,7 @@
 import nltk
+import pandas as pd
+import json
+import re
 nltk.download('punkt')
 
 SYSTEM_PROMPT = """
@@ -75,3 +78,59 @@ def format_prompt(retrieved_passages, question, option_labels='abcde'):
         documents=retrieved_passages, question_text=question_text, options=options
     )
     return prompt
+
+
+def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", answer_path:str="data/LongHealth/data/answer_locations.csv"):
+    """iterate over longhealth and convert from a json
+    form into a form that will be useful in DPR
+    """
+    patient_documents = []
+    patient_questions = []
+    patient_info_data = []
+
+    with open(data_path, "r") as f:
+        benchmark = json.load(f)
+
+    answers = pd.read_csv(answer_path)
+    answers['answer_start']-=answers['text_start']
+    answers['answer_end']-=answers['text_start']
+    answers = answers[answers['answer_start']!=answers['answer_end']]
+
+    for patient_idx, patient in benchmark.items():
+        patient_text_lengths = {t:len(v) for t,v in patient['texts'].items()}
+
+        patient_texts = '\n'.join(patient["texts"].values())
+        patient_document = break_text_into_passages(patient_texts, 256) # chosen as half of our max length
+        
+        # add the entire broken-down patient document here
+        patient_documents.append(patient_document)
+
+        patient_qa = []
+        patient_info = []
+
+        for question in patient["questions"]:
+            # for each of the question/answers, we are going to get a lookup 
+            question_no = question["No"]
+
+            a_info_locs = answers[(answers['patient_id']==patient_idx) & (answers['question_id']==question_no)]
+
+            info_str = ""
+            for _,row in a_info_locs.iterrows():
+                info_str+=f'{patient["texts"][row.text_id][row.answer_start:row.answer_end]} \n'
+            
+            question_str = question['question']
+
+            mq_answers = ""
+            # remember this is multiple QA, going to convert to a single string 
+            for answer_key in filter(lambda x: re.match(r"^answer_[a-z]$",x), question.keys()):
+                mq_answers += f"{question[answer_key]} "
+
+            patient_qa.append((question_str,mq_answers))
+            patient_info.append(info_str)
+
+        patient_questions.append(patient_qa)
+        patient_info_data.append(patient_info)
+
+    return patient_documents, patient_questions, patient_info_data
+
+            
