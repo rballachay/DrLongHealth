@@ -28,6 +28,7 @@ Code for COMP545 Project: LLM modelling of LongHealth Clinical Notes. This proje
 
 ## Training Data
 I think we should use the following dataset: 
+We use the emrQA dataset for the training of our study. The original emrQA only contains questions and answers, however, we are trying to train over multiple choice questions. We generated distractions for each question to augment the dataset.
 
 ## Part 1: Retriever-reader method
 This method will be built largely off of [_Efficient and Robust Question Answering from Minimal Context over Documents_](https://arxiv.org/abs/1805.08092). This will choose a different number of sentences depending upon the question being asked, using a threshold for the relevance of the top n retrieved sentences from the document. 
