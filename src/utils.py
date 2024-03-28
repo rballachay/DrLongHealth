@@ -96,7 +96,7 @@ def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", a
 
     for patient_idx, patient in benchmark.items():
         patient_texts = '\n'.join(patient["texts"].values())
-        patient_document = break_text_into_passages(patient_texts, 128) # chosen as half of our max length
+        patient_document = break_text_into_passages(patient_texts, 256) # chosen as half of our max length
         
         # add the entire broken-down patient document here
         patient_documents.append(patient_document)
@@ -127,7 +127,7 @@ def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", a
             for answer_key in filter(lambda x: re.match(r"^answer_[a-z]$",x), question.keys()):
                 mq_answers += f"{question[answer_key]} "
 
-            mq_answers = question['correct']
+            #mq_answers = question['correct']
 
             patient_qa.append((question_str,mq_answers))
             patient_info.append(info_str)

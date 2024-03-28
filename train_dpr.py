@@ -17,9 +17,9 @@ def train_dpr():
     random.seed(0)
 
     N_EPOCHS = 128
-    MAX_LENGTH = 128
+    MAX_LENGTH = 256
     BATCH_SIZE = 128
-    BATCH_SIZE_VAL = 256
+    BATCH_SIZE_VAL = 128
 
     questions_train, answers_train, questions_eval, answers_eval = collate_emrQA()
 
@@ -101,9 +101,13 @@ def train_dpr():
             # each question is a tuple of the question and the multuple choice answers
             patient_qs = [j[0]+'answers: '+j[1] for j in longhealth_qs[patient_i]]
 
-            patient_docs = longhealth_docs[patient_i] + longhealth_infos[patient_i]
+            # randomly sample some data from here to pad out the answers
+            l_sample = min(len(longhealth_docs[patient_i]),BATCH_SIZE_VAL)
+            longhealth_docs_i = random.sample(longhealth_docs[patient_i],l_sample)
 
-            l_docs = len(longhealth_docs[patient_i])
+            patient_docs = longhealth_docs_i + longhealth_infos[patient_i]
+
+            l_docs = len(longhealth_docs_i)
             patient_idx = np.arange(l_docs,l_docs+len(longhealth_infos[patient_i]))
             
             patient_doc_mtx = model.embed_passages(patient_docs)
