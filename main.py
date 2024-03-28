@@ -1,4 +1,4 @@
-from models.dpr import DPRModel,inbatch_negative_sampling, get_topk_indices,contrastive_loss_criterion, recall_at_k
+from models.dpr import DPRModel,inbatch_negative_sampling, get_topk_indices,contrastive_loss_criterion, recall_at_k, accuracy_at_k
 from src.utils import collate_longhealth, collate_emrQA
 import torch
 import random
@@ -14,33 +14,39 @@ def train_dpr():
     random.seed(0)
 
     N_EPOCHS = 128
-    MAX_LENGTH = 16
-    BATCH_SIZE = 16
+    MAX_LENGTH = 128
+    BATCH_SIZE = 128
+    BATCH_SIZE_VAL = 256
 
-    questions, answers = collate_emrQA()
+    questions_train, answers_train, questions_eval, answers_eval = collate_emrQA()
 
     longhealth_docs, longhealth_qs, longhealth_infos = collate_longhealth()
 
-    model = DPRModel(MAX_LENGTH)
+    model = DPRModel(MAX_LENGTH, device).to(device)
     optimizer = model.optimizer
 
-    results = {'training_loss':[],'epoch':[],'eval_recall':[]}
+    results = {'training_loss':[],'epoch':[],
+    'eval_recall_10':[],'eval_recall_50':[],'eval_recall_100':[],
+    'eval_acc_10':[],'eval_acc_50':[],'eval_acc_100':[],
+    'test_recall_10':[],'test_recall_50':[],'test_recall_100':[],
+    'test_acc_10':[],'test_acc_50':[],'test_acc_100':[],
+    }
     # start training/eval loop
     for epoch in range(N_EPOCHS):
         model.train()
 
         training_loss = []
-        for i in range(0,len(questions)//BATCH_SIZE): 
-            questions_i = questions[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
-            answers_i = answers[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
+        for i in range(0,len(questions_train)//BATCH_SIZE): 
+            questions_i = questions_train[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
+            answers_i = answers_train[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
 
-            answers_stack = model.embed_passages(answers_i)
-            qa_stack = model.embed_questions(questions_i)
+            answers_stack = model.embed_passages(answers_i).to(device)
+            qa_stack = model.embed_questions(questions_i).to(device)
 
             # Implement in-batch negative sampling
             S = inbatch_negative_sampling(qa_stack, answers_stack)
 
-            loss = contrastive_loss_criterion(S)
+            loss = contrastive_loss_criterion(S, device=device)
 
             optimizer.zero_grad()
             loss.backward()
@@ -49,18 +55,49 @@ def train_dpr():
             training_loss.append(float(loss))
             print(f"Training loss, {i}: {loss:.2f}")
 
-            if i>10:
-                break
+        # delete these to clear up memory
+        del answers_stack, qa_stack, S, loss
 
         model.eval()
 
-        eval_recall = []
+        eval_recall_10 = []
+        eval_recall_50 = []
+        eval_recall_100 = []
+        eval_acc_10 = []
+        eval_acc_50 = []
+        eval_acc_100 = []
+
+        # 256 is the closest possible size to what our lookup will be
+        for i in range(0,len(questions_eval)//BATCH_SIZE_VAL):  
+            questions_i = questions_eval[i*BATCH_SIZE_VAL:(i+1)*BATCH_SIZE_VAL]
+            answers_i = answers_eval[i*BATCH_SIZE_VAL:(i+1)*BATCH_SIZE_VAL]
+            patient_doc_mtx = model.embed_passages(answers_i)
+            qa_stack = model.embed_questions(questions_i)
+
+            indices, scores = get_topk_indices(qa_stack, patient_doc_mtx, k=100)  
+
+            eval_recall_10.append(recall_at_k(indices, np.arange(len(answers_i)), k=10))
+            eval_recall_50.append(recall_at_k(indices, np.arange(len(answers_i)), k=50))
+            eval_recall_100.append(recall_at_k(indices, np.arange(len(answers_i)), k=100))
+
+            eval_acc_10.append(accuracy_at_k(indices, np.arange(len(answers_i)), k=10))
+            eval_acc_50.append(accuracy_at_k(indices, np.arange(len(answers_i)), k=50))
+            eval_acc_100.append(accuracy_at_k(indices, np.arange(len(answers_i)), k=100))
+
+            del indices, scores, qa_stack, patient_doc_mtx
+
+        test_recall_10 = []
+        test_recall_50 = []
+        test_recall_100 = []
+        test_acc_10 = []
+        test_acc_50 = []
+        test_acc_100 = []
+
         # we are evaluating patient-by-patient
         for patient_i in range(len(longhealth_docs)):
             # each question is a tuple of the question and the multuple choice answers
-            patient_qs = [j[0] for j in longhealth_qs[patient_i]]
+            patient_qs = [j[0]+'answers: '+j[1] for j in longhealth_qs[patient_i]]
 
-            # add the actual question answer passages back to the corpus, then shuffle
             patient_docs = longhealth_docs[patient_i] + longhealth_infos[patient_i]
 
             l_docs = len(longhealth_docs[patient_i])
@@ -69,14 +106,32 @@ def train_dpr():
             patient_doc_mtx = model.embed_passages(patient_docs)
             qa_stack = model.embed_questions(patient_qs)
 
-            indices, scores = get_topk_indices(qa_stack, patient_doc_mtx, k=10)  
+            indices, scores = get_topk_indices(qa_stack, patient_doc_mtx, k=100)  
+ 
+            test_recall_10.append(recall_at_k(indices, patient_idx, k=10)) 
+            test_recall_50.append(recall_at_k(indices, patient_idx, k=50))
+            test_recall_100.append(recall_at_k(indices, patient_idx, k=100))
 
-            recall = recall_at_k(indices, patient_idx, k=10)   
+            test_acc_10.append(accuracy_at_k(indices, patient_idx, k=10)) 
+            test_acc_50.append(accuracy_at_k(indices, patient_idx, k=50))
+            test_acc_100.append(accuracy_at_k(indices, patient_idx, k=100))
 
-            eval_recall.append(recall)
+            # delete these to clear up memory
+            del indices, scores, qa_stack, patient_doc_mtx
 
         results['training_loss'].append(np.mean(training_loss))
-        results['eval_recall'].append(np.mean(eval_recall))
+        results['test_recall_10'].append(np.mean(test_recall_10))
+        results['test_recall_50'].append(np.mean(test_recall_50))
+        results['test_recall_100'].append(np.mean(test_recall_100))
+        results['test_acc_10'].append(np.mean(test_acc_10))
+        results['test_acc_50'].append(np.mean(test_acc_50))
+        results['test_acc_100'].append(np.mean(test_acc_100))
+        results['eval_recall_10'].append(np.mean(eval_recall_10))
+        results['eval_recall_50'].append(np.mean(eval_recall_50))
+        results['eval_recall_100'].append(np.mean(eval_recall_100))
+        results['eval_acc_10'].append(np.mean(eval_acc_10))
+        results['eval_acc_50'].append(np.mean(eval_acc_50))
+        results['eval_acc_100'].append(np.mean(eval_acc_100))
         results['epoch'].append(epoch+1)
 
         # save the current state of the model 

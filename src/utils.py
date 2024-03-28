@@ -38,9 +38,11 @@ For example, if the correct answer to a question is option C, and the text for C
 """
 
 
-def break_text_into_passages(text, max_passage_length=256):
+def break_text_into_passages(text, max_passage_length=128):
     """Break a text into passages of a certain length, each containing
-    complete sentences.
+    complete sentences. note that we don't want the max passage length to 
+    be longer than the max token length passed to our model as there will be 
+    a lot of truncation, and information lost
     """
 
     # Tokenize the text into sentences
@@ -101,7 +103,7 @@ def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", a
         patient_text_lengths = {t:len(v) for t,v in patient['texts'].items()}
 
         patient_texts = '\n'.join(patient["texts"].values())
-        patient_document = break_text_into_passages(patient_texts, 256) # chosen as half of our max length
+        patient_document = break_text_into_passages(patient_texts, 128) # chosen as half of our max length
         
         # add the entire broken-down patient document here
         patient_documents.append(patient_document)
@@ -117,7 +119,7 @@ def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", a
 
             info_str = ""
             for _,row in a_info_locs.iterrows():
-                info_str+=f'{patient["texts"][row.text_id][row.answer_start:row.answer_end]} \n'
+                info_str+=f'{patient["texts"][row.text_id][row.answer_start:row.answer_end]} '
             
             question_str = question['question']
 
@@ -136,7 +138,7 @@ def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", a
 
             
 
-def collate_emrQA(medication_data:str='data/emrQA/clean/medication-SQUAD.json',relation_data='data/emrQA/clean/relation-SQUAD.json'):
+def collate_emrQA(medication_data:str='data/emrQA/clean/medication-SQUAD.json',relation_data='data/emrQA/clean/relation-SQUAD.json', train_frac:float=0.85):
     """convert medication and relation data into form that will be useful for DPR training
     """
 
@@ -163,7 +165,17 @@ def collate_emrQA(medication_data:str='data/emrQA/clean/medication-SQUAD.json',r
     combined = list(zip(questions, answers))
     random.shuffle(combined)
     questions, answers = zip(*combined)
-    return questions, answers
+
+    # split the data into training and validation 
+    train_end = int(train_frac*len(questions))
+
+    questions_train = questions[:train_end]
+    answers_train = answers[:train_end]
+
+    questions_val = questions[train_end:]
+    answers_val = answers[train_end:]
+
+    return questions_train, answers_train, questions_val, answers_val
 
     
                 
