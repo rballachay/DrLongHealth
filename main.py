@@ -6,15 +6,6 @@ import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def get_patient_doc_matrix(patient, model, max_length=512):
-    patient_texts = '\n'.join(patient["texts"].values())
-    patient_document = break_text_into_passages(patient_texts,max_length)
-    passages = []
-    for passage in patient_document:
-        embedded = model.embed_passages(passage)
-        passages.append(embedded)
-    return torch.cat(passages), patient_document
-
 def train_dpr():
     """
     Funtion that trains our DPR for retrieval of relevant passages
