@@ -36,7 +36,7 @@ This method will be built largely off of [_Efficient and Robust Question Answeri
 
 
 
-## Developing the reader 
+## Developing the retriever 
 
 The first few training trials of the DPR retriever did not go particularly well. The training set of emrQA immediately did very well (>99% top-10 accuracy after 1 epoch), however it did not perform very well at all on the LongHealth dataset. This may be attributable to the fact that the questions in the LongHealth dataset are considerably more difficult. In addition, the formulation of the questions are different, as they are asking multiple choice questions. Here are examples of the questions from the emrQA dataset:
 
@@ -57,6 +57,24 @@ Compare these three question/answer pairs to those from the LongHealth dataset:
 
 
 ```
+Question: What was the diagnosis for Mrs. Anderson during her inpatient treatment from 07/20/2023 to 09/12/2023?
+Correct Answer: Seropneumothorax secondary to punction of a malignant pleural effusion with progressive pulmonary metastasis of a pancreatic head carcinoma
+Information: Diagnosis**
+Seropneumothorax secondary to punction of a malignant pleural effusion
+with progressive pulmonary metastasis of a pancreatic head carc 
 
+Question: Which of the following statements regarding Mrs. Anderson's chemotherapy is accurate?
+Correct Answer: Gemcitabine/nab-paclitaxel was started in 07/22 after surgery.
+Information: Nurse
+-Status post Whipple surgery on 12/22
+-3 months adjuvant CTx with gemcitabin/5 
 
+Question: Based on the sequence of interventions and radiologic findings, which of the following statements is accurate regarding Mrs. Anderson's clinical progression?
+Correct Answer: The pleural effusion that was initially drained led to an improvement in oxygen saturation, but was followed by the development of a seropneumothorax, necessitating a chest tube placement.
+Information:  97% under 3L of O2. X-rays revealed a significant right-sided pleural
+effusion, which was drained. After the procedure, the patient\'s
+shortness of breath improved, with SpO2 at 95% under 2L of O2. However,
+an x-ray follow-up displayed a seropneumothorax, which became more
+evident over time, leading to the placement of a chest tube by the
+thoracic side 
 ```
