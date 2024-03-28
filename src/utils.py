@@ -2,6 +2,7 @@ import nltk
 import pandas as pd
 import json
 import re
+import random
 nltk.download('punkt')
 
 SYSTEM_PROMPT = """
@@ -81,8 +82,7 @@ def format_prompt(retrieved_passages, question, option_labels='abcde'):
 
 
 def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", answer_path:str="data/LongHealth/data/answer_locations.csv"):
-    """iterate over longhealth and convert from a json
-    form into a form that will be useful in DPR
+    """iterate over longhealth and convert from a json form into a form that will be useful in DPR
     """
     patient_documents = []
     patient_questions = []
@@ -134,3 +134,36 @@ def collate_longhealth(data_path:str="data/LongHealth/data/benchmark_v5.json", a
     return patient_documents, patient_questions, patient_info_data
 
             
+
+def collate_emrQA(medication_data:str='data/emrQA/clean/medication-SQUAD.json',relation_data='data/emrQA/clean/relation-SQUAD.json'):
+    """convert medication and relation data into form that will be useful for DPR training
+    """
+
+    with open(medication_data, "r") as f:
+        medication_json = json.load(f)
+
+    with open(relation_data, "r") as f:
+        relation_json = json.load(f)
+
+    
+    questions = []
+    answers = []
+    for data_source in [medication_json, relation_json]:
+        for record in data_source['data']:
+            for paragraph in record['paragraphs']:
+                answer_start = -1
+                for question in paragraph['qas']:
+                    if question['answers'][0]['answer_start']!=answer_start:
+                        questions.append(question['question'])
+                        answers.append(question['answers'][0]['text'])
+                        answer_start=question['answers'][0]['answer_start']
+
+    # shuffle the data
+    combined = list(zip(questions, answers))
+    random.shuffle(combined)
+    questions, answers = zip(*combined)
+    return questions, answers
+
+    
+                
+

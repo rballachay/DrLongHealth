@@ -18,12 +18,14 @@ class DPRModel(nn.Module):
         results = self.bert(**batch)
         return results.last_hidden_state[:,0,:]
 
-    def embed_questions(self, titles, bodies):
-        questions = [(qt,qb) for qt,qb in zip(titles,bodies)]
+    def embed_questions(self, titles, bodies=None):
+        if bodies:
+            questions = [(qt,qb) for qt,qb in zip(titles,bodies)]
+        else:
+            questions=titles
         batch = self.tokenizer(questions,padding=True, max_length=self.max_length, truncation=True, return_tensors='pt')
         results = self.bert(**batch)
         return results.last_hidden_state[:,0,:]
-
 
 def inbatch_negative_sampling(Q: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
     # row - wise dot product
@@ -42,7 +44,6 @@ def contrastive_loss_criterion(S: torch.Tensor, labels: torch.Tensor = None):
         )
     return loss
 
-
 def get_topk_indices(Q, P, k: int = None):
     """in the original usage of this function, the first index was the batch, so
     here we have replaced that with the a,b,c,d of the question
@@ -54,7 +55,11 @@ def get_topk_indices(Q, P, k: int = None):
     top_k = torch.topk(dot_product, k)
     return top_k.indices, top_k.values
 
-def tokenize_qa_batch(model, questions, answers, max_length=64) -> BatchEncoding:
-    q_batch = model.tokenizer(questions,padding=True, max_length=max_length, truncation=True, return_tensors='pt')
-    a_batch = model.tokenizer(answers,padding=True, max_length=max_length, truncation=True, return_tensors='pt')
-    return q_batch, a_batch
+def select_by_indices(indices: torch.Tensor, passages: 'list[str]', answer_dict=None) -> 'list[str]':
+    if answer_dict is None:
+        return [[passages[value] for value in row] for row in indices]
+    return [[answer_dict[passages[value]] for value in row] for row in indices]
+
+def recall_at_k(retrieved_indices: 'list[list[int]]', true_indices: 'list[int]', k: int):
+    is_in_k = [true_indices[i] in retrieved_indices[i][:k] for i in range(len(true_indices)) ]
+    return sum(is_in_k)/len(is_in_k)
