@@ -33,3 +33,30 @@ We use the emrQA dataset, which contains the clinical documents of 258 patients,
 
 ## Part 1: Retriever-reader method
 This method will be built largely off of [_Efficient and Robust Question Answering from Minimal Context over Documents_](https://arxiv.org/abs/1805.08092). This will choose a different number of sentences depending upon the question being asked, using a threshold for the relevance of the top n retrieved sentences from the document. 
+
+
+
+## Developing the reader 
+
+The first few training trials of the DPR retriever did not go particularly well. The training set of emrQA immediately did very well (>99% top-10 accuracy after 1 epoch), however it did not perform very well at all on the LongHealth dataset. This may be attributable to the fact that the questions in the LongHealth dataset are considerably more difficult. In addition, the formulation of the questions are different, as they are asking multiple choice questions. Here are examples of the questions from the emrQA dataset:
+
+
+```
+Question: "Has the patient ever had enteric-coated aspirin"
+Answer: "2. Enteric-coated aspirin 325 mg p.o. daily"
+
+Question: "Why did the patient need digoxin."
+Answer: "fibrillation. The digoxin was also added for heart rate control"
+
+Question: "Does this woman have a history of labor or maternal fever"
+Answer: "There was no labor or maternal fever"
+```
+
+
+Compare these three question/answer pairs to those from the LongHealth dataset:
+
+
+```
+
+
+```

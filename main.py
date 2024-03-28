@@ -9,7 +9,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def train_dpr():
     """
-    Funtion that trains our DPR for retrieval of relevant passages
+    Funtion that trains our DPR for retrieval of relevant passages.
+
+    Note that there is a major difference between emrQA and LongHealth, that being that 
+    the questions asked of emrQA are relatively simple. 
     """
     random.seed(0)
 
