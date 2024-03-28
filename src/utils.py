@@ -42,6 +42,7 @@ def break_text_into_passages(text, max_passage_length=256):
     """Break a text into passages of a certain length, each containing
     complete sentences.
     """
+
     # Tokenize the text into sentences
     sentences = nltk.sent_tokenize(text)
 

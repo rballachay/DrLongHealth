@@ -1,8 +1,9 @@
-from models.dpr import DPRModel,inbatch_negative_sampling, get_topk_indices,contrastive_loss_criterion, select_by_indices, recall_at_k
-from src.utils import break_text_into_passages, collate_longhealth, collate_emrQA
+from models.dpr import DPRModel,inbatch_negative_sampling, get_topk_indices,contrastive_loss_criterion, recall_at_k
+from src.utils import collate_longhealth, collate_emrQA
 import torch
 import random
 import numpy as np
+import pandas as pd
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -18,12 +19,12 @@ def train_dpr():
 
     questions, answers = collate_emrQA()
 
-    longhealth_docs, longhealth_qs, longhealth_infos = collate_longhealth() #use default location
+    longhealth_docs, longhealth_qs, longhealth_infos = collate_longhealth()
 
     model = DPRModel(MAX_LENGTH)
     optimizer = model.optimizer
 
-    results = {}
+    results = {'training_loss':[],'epoch':[],'eval_recall':[]}
     # start training/eval loop
     for epoch in range(N_EPOCHS):
         model.train()
@@ -46,9 +47,14 @@ def train_dpr():
             optimizer.step()
 
             training_loss.append(float(loss))
+            print(f"Training loss, {i}: {loss:.2f}")
+
+            if i>10:
+                break
 
         model.eval()
 
+        eval_recall = []
         # we are evaluating patient-by-patient
         for patient_i in range(len(longhealth_docs)):
             # each question is a tuple of the question and the multuple choice answers
@@ -63,12 +69,19 @@ def train_dpr():
             patient_doc_mtx = model.embed_passages(patient_docs)
             qa_stack = model.embed_questions(patient_qs)
 
-            indices, scores = get_topk_indices(qa_stack, patient_doc_mtx, k=5)  
+            indices, scores = get_topk_indices(qa_stack, patient_doc_mtx, k=10)  
 
             recall = recall_at_k(indices, patient_idx, k=10)   
-            print(recall)
 
-        results.append([])
+            eval_recall.append(recall)
+
+        results['training_loss'].append(np.mean(training_loss))
+        results['eval_recall'].append(np.mean(eval_recall))
+        results['epoch'].append(epoch+1)
+
+        # save the current state of the model 
+        torch.save(model.state_dict(), f"models/dpr_training_best.pth")
+        pd.DataFrame(results).to_csv(f'results/dpr_training.csv',index=False)
         
 
 
