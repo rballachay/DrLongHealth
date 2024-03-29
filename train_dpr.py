@@ -1,4 +1,5 @@
-from models.dpr import DPRModel,inbatch_negative_sampling, get_topk_indices,contrastive_loss_criterion, recall_at_k, accuracy_at_k
+from models.dpr import DPRModel
+from models.utils import inbatch_negative_sampling, get_topk_indices,contrastive_loss_criterion, recall_at_k, accuracy_at_k
 from src.utils import collate_longhealth, collate_emrQA
 import torch
 import random
