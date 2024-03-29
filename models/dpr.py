@@ -30,9 +30,9 @@ class DPRModel(nn.Module):
         
 
 def get_relevant_passages(model:nn.Module, answer_docs:list[str], question:str, n_passages:int):
+    n_passages = min(n_passages,len(answer_docs))
     patient_doc_mtx = model.embed_passages(answer_docs).to(model.device)
     qa_stack = model.embed_questions([question]).to(model.device)
     indices, scores = get_topk_indices(qa_stack, patient_doc_mtx, k=n_passages)  
     indices = indices.flatten().tolist()
-
     return ' ... '.join([answer_docs[i] for i in indices])

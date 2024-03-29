@@ -14,18 +14,18 @@ from src.utils import break_text_into_passages
 import re
 
 # these are the models from hugging face we have decided to use
-MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2']
+MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2', 'lmsys/vicuna-7b-v1.5-16k']
 
 URL = "http://localhost:8000/v1/chat/completions"
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def run_inference(dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results/dpr', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
     
     dpr_model = None
 
     if dpr:
-        dpr_model = DPRModel(256, device).to(device)
+        dpr_model = DPRModel(256, "cuda:1").to("cuda:1")
         dpr_model.load_state_dict(torch.load(dpr_path))
     
     with open(data_path, "r") as f:
@@ -102,20 +102,13 @@ def run_inference(dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_
                         passages = break_text_into_passages('\n'.join(list(answer_docs.values())), 256)
                         question_str = question['question']+' answers:'+ mq_answers
                         # only getting the first n relevant passages 
-                        relevant_passages = get_relevant_passages(dpr_model, passages, question_str, n_passages=25)
+                        relevant_passages = get_relevant_passages(dpr_model, passages, question_str, n_passages=10)
                         prompt = create_prompt_custom(
                             relevant_passages,
                             question,
                         )
                         answer_location = {} # don't really need this anyways
 
-                    prompt, answer_location = create_prompt(
-                            answer_docs,
-                            non_answer_docs,
-                            question,
-                            max_len=max_len,
-                            tokenizer=tokenizer,
-                        )
                     response = query_model(prompt, model=model, system_prompt=SYSTEM_PROMPT, url=URL)
                     choice = response.json()["choices"][0]
                     patient_results[f"question_{i}"][f"answer_{j}"] = choice["message"]["content"]
