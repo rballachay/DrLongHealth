@@ -12,6 +12,7 @@ import time
 import torch
 from src.utils import break_text_into_passages
 import re
+import pandas as pd
 
 # these are the models from hugging face we have decided to use
 MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2', 'lmsys/vicuna-7b-v1.5-16k']
@@ -120,6 +121,56 @@ def run_inference(dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_
 
         process.terminate()
 
+def calculate_dpr_sizes(data_path:str="data/LongHealth/data/benchmark_v5.json", dpr_path:str='models/dpr_training_best.pth'):
+
+    with open(data_path, "r") as f:
+        benchmark = json.load(f)
+
+    dpr_model = DPRModel(256, "cuda:0").to("cuda:0")
+    dpr_model.load_state_dict(torch.load(dpr_path))
+    
+    results={'patient':[],'question':[],'l_prompt':[],'n_passages':[]}
+    for idx, patient in tqdm(benchmark.items(), position=0):
+            for i, question in tqdm(
+                enumerate(patient["questions"]),
+                position=1,
+                leave=False,
+                total=len(patient["questions"]),
+            ):
+                answer_docs = {
+                    text_id: patient["texts"][text_id] for text_id in question["answer_location"]
+                }
+                non_answer_docs = [
+                    text
+                    for text_id, text in patient["texts"].items()
+                    if text_id not in question["answer_location"]
+                ]
+                mq_answers = ""
+                # remember this is multiple QA, going to convert to a single string 
+                for answer_key in filter(lambda x: re.match(r"^answer_[a-z]$",x), question.keys()):
+                    mq_answers += f"{question[answer_key]} "
+
+                passages = break_text_into_passages('\n'.join(list(answer_docs.values())), 256)
+                question_str = question['question']+' answers:'+ mq_answers
+
+                for n_passages in [10,25,10000]:
+                    # only getting the first n relevant passages 
+                    relevant_passages = get_relevant_passages(dpr_model, passages, question_str, n_passages=n_passages)
+
+                    prompt = create_prompt_custom(
+                                relevant_passages,
+                                question,
+                            )
+
+                    results['patient'].append(idx)
+                    results['question'].append(question['No'])
+                    results['n_passages'].append(n_passages)
+                    results['l_prompt'].append(len(prompt))
+
+
+    pd.DataFrame(results).to_csv('results/dpr/length_prompts.csv')
+
+                
 
 def KILL():
     for proc in process_iter():
@@ -135,8 +186,9 @@ def KILL():
 if __name__=="__main__":
     KILL()
     try:
+        calculate_dpr_sizes()
         #run_inference(dpr=False)
-        run_inference(dpr=True)
+        #run_inference(dpr=True)
     except Exception as e:
         print(f"Excepted! Killing all processes running on ports\n{e}")
     finally:
