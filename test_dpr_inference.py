@@ -21,7 +21,10 @@ URL = "http://localhost:8000/v1/chat/completions"
 
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def run_inference(dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results/dpr', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
+def run_inference(task:int=1, dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results/dpr', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
+    
+    if task not in [1,2,3]:
+        raise Exception("Task must be one of {1,2,3}")
     
     dpr_model = None
 
@@ -72,16 +75,25 @@ def run_inference(dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_
             ):
                 if patient_results.get(f"question_{i}"):
                     continue
-
-                patient_results[f"question_{i}"] = {"correct": question["correct"]}
-                answer_docs = {
-                    text_id: patient["texts"][text_id] for text_id in question["answer_location"]
-                }
-                non_answer_docs = [
-                    text
-                    for text_id, text in patient["texts"].items()
-                    if text_id not in question["answer_location"]
-                ]
+                
+                
+                if task==1:
+                    patient_results[f"question_{i}"] = {"correct": question["correct"]}
+                    answer_docs, non_answer_docs = get_task_1()
+                elif task==2:
+                    question["answer_f"] = "Question cannot be answered with provided documents"
+                    non_answer_docs = sample_distractions(idx, benchmark, n=10)
+                    patient_results[f"question_{i}"] =  {"correct": question["correct"]}
+                    answer_docs = {
+                        text_id: patient["texts"][text_id]
+                        for text_id in question["answer_location"]
+                    }
+                elif task==3:
+                    question["answer_f"] = "Question cannot be answered with provided documents"
+                    non_answer_docs = sample_distractions(idx, benchmark, n=10)
+                    patient_results[f"question_{i}"] = {"correct":"Question cannot be answered with provided documents"}
+                    answer_docs = {}
+                    
 
                 # we are not doing it 5 times because it doesn't vary enough 
                 for j in [1]:
@@ -120,6 +132,29 @@ def run_inference(dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_
 
 
         process.terminate()
+
+def get_task_1(patient, question):
+    answer_docs = {
+                    text_id: patient["texts"][text_id] for text_id in question["answer_location"]
+                }
+    non_answer_docs = [
+        text
+        for text_id, text in patient["texts"].items()
+        if text_id not in question["answer_location"]
+    ]
+    return answer_docs, non_answer_docs
+
+def sample_distractions(patien_id: str, benchmark: dict, n: int = 4):
+    """samples `n` texts from the benchmark, that are not from patient with `patient_id`"""
+
+    all_texts = [
+        text
+        for pid, patients in benchmark.items()
+        if pid != patien_id
+        for text in patients["texts"].values()
+    ]
+    sampled_texts = random.sample(all_texts, min(n, len(all_texts)))
+    return sampled_texts
 
 def calculate_dpr_sizes(data_path:str="data/LongHealth/data/benchmark_v5.json", dpr_path:str='models/dpr_training_best.pth'):
 
