@@ -40,7 +40,6 @@ def plot_task(data_path='results/task_1', ground_truth='data/LongHealth/data/ben
                 true_total+=match
                 total_count+=1
 
-
         print(100*true_total/total_count)
                 
 

@@ -16,13 +16,13 @@ import pandas as pd
 import random
 
 # these are the models from hugging face we have decided to use
-MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2','lmsys/vicuna-7b-v1.5-16k'] #'mistralai/Mistral-7B-Instruct-v0.2',
+MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2'] #'mistralai/Mistral-7B-Instruct-v0.2',
 
 URL = "http://localhost:8000/v1/chat/completions"
 
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def run_inference(task:int=1, dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
+def run_inference(task:int=1, dpr:bool=False, n_passages:int=25, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
     
     if task not in [1,2,3]:
         raise Exception("Task must be one of {1,2,3}")
@@ -118,9 +118,13 @@ def run_inference(task:int=1, dpr:bool=False, data_path:str="data/LongHealth/dat
                             passages = break_text_into_passages('\n'.join(list(answer_docs.values())), 256)
                         elif task==2:
                             passages = break_text_into_passages('\n'.join(list(answer_docs.values())+non_answer_docs), 256)
+                        elif task==3:
+                            passages = break_text_into_passages('\n'.join(non_answer_docs), 256)
+                        
                         question_str = question['question']+' answers:'+ mq_answers
+                        
                         # only getting the first n relevant passages 
-                        relevant_passages = get_relevant_passages(dpr_model, passages, question_str, n_passages=10)
+                        relevant_passages = get_relevant_passages(dpr_model, passages, question_str, n_passages=n_passages)
                         prompt = create_prompt_custom(
                             relevant_passages,
                             question,
@@ -161,8 +165,11 @@ def sample_distractions(patien_id: str, benchmark: dict, n: int = 4):
     sampled_texts = random.sample(all_texts, min(n, len(all_texts)))
     return sampled_texts
 
-def calculate_dpr_sizes(data_path:str="data/LongHealth/data/benchmark_v5.json", dpr_path:str='models/dpr_training_best.pth'):
+def calculate_dpr_sizes(task=1,data_path:str="data/LongHealth/data/benchmark_v5.json", dpr_path:str='models/dpr_training_best.pth'):
 
+    if task not in [1,2,3]:
+        raise Exception("Task must be one of {1,2,3}")
+    
     with open(data_path, "r") as f:
         benchmark = json.load(f)
 
@@ -177,20 +184,32 @@ def calculate_dpr_sizes(data_path:str="data/LongHealth/data/benchmark_v5.json", 
                 leave=False,
                 total=len(patient["questions"]),
             ):
-                answer_docs = {
-                    text_id: patient["texts"][text_id] for text_id in question["answer_location"]
-                }
-                non_answer_docs = [
-                    text
-                    for text_id, text in patient["texts"].items()
-                    if text_id not in question["answer_location"]
-                ]
+                if task==1:
+                    answer_docs, non_answer_docs = get_task_1()
+                elif task==2:
+                    question["answer_f"] = "Question cannot be answered with provided documents"
+                    non_answer_docs = sample_distractions(idx, benchmark, n=10)
+                    answer_docs = {
+                        text_id: patient["texts"][text_id]
+                        for text_id in question["answer_location"]
+                    }
+                elif task==3:
+                    question["answer_f"] = "Question cannot be answered with provided documents"
+                    non_answer_docs = sample_distractions(idx, benchmark, n=10)
+                    answer_docs = {}
+
                 mq_answers = ""
                 # remember this is multiple QA, going to convert to a single string 
                 for answer_key in filter(lambda x: re.match(r"^answer_[a-z]$",x), question.keys()):
                     mq_answers += f"{question[answer_key]} "
 
-                passages = break_text_into_passages('\n'.join(list(answer_docs.values())), 256)
+                if task==1:
+                    passages = break_text_into_passages('\n'.join(list(answer_docs.values())), 256)
+                elif task==2:
+                    passages = break_text_into_passages('\n'.join(list(answer_docs.values())+non_answer_docs), 256)
+                elif task==3:
+                    passages = break_text_into_passages('\n'.join(non_answer_docs), 256)
+
                 question_str = question['question']+' answers:'+ mq_answers
 
                 for n_passages in [10,25,10000]:
@@ -208,7 +227,7 @@ def calculate_dpr_sizes(data_path:str="data/LongHealth/data/benchmark_v5.json", 
                     results['l_prompt'].append(len(prompt))
 
 
-    pd.DataFrame(results).to_csv('results/dpr/length_prompts.csv')
+    pd.DataFrame(results).to_csv(f'results/task_{task}/length_prompts.csv')
 
                 
 
@@ -226,9 +245,9 @@ def KILL():
 if __name__=="__main__":
     KILL()
     try:
-        #calculate_dpr_sizes()
-        run_inference(task=3, dpr=False)
-        #run_inference(task=2, dpr=True)
+        calculate_dpr_sizes(task=2)
+        #run_inference(task=, dpr=False)
+        #run_inference(task=3, dpr=True, n_passages=25)
     except Exception as e:
         print(f"Excepted! Killing all processes running on ports\n{e}")
     finally:
