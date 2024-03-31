@@ -21,10 +21,12 @@ URL = "http://localhost:8000/v1/chat/completions"
 
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def run_inference(task:int=1, dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results/dpr', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
+def run_inference(task:int=1, dpr:bool=False, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
     
     if task not in [1,2,3]:
         raise Exception("Task must be one of {1,2,3}")
+    
+    outdir = f"{outdir}/task_{task}"
     
     dpr_model = None
 
