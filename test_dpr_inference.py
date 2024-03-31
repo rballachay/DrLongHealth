@@ -13,9 +13,10 @@ import torch
 from src.utils import break_text_into_passages
 import re
 import pandas as pd
+import random
 
 # these are the models from hugging face we have decided to use
-MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2', 'lmsys/vicuna-7b-v1.5-16k']
+MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2','lmsys/vicuna-7b-v1.5-16k'] #'mistralai/Mistral-7B-Instruct-v0.2',
 
 URL = "http://localhost:8000/v1/chat/completions"
 
@@ -78,7 +79,6 @@ def run_inference(task:int=1, dpr:bool=False, data_path:str="data/LongHealth/dat
                 if patient_results.get(f"question_{i}"):
                     continue
                 
-                
                 if task==1:
                     patient_results[f"question_{i}"] = {"correct": question["correct"]}
                     answer_docs, non_answer_docs = get_task_1()
@@ -114,7 +114,10 @@ def run_inference(task:int=1, dpr:bool=False, data_path:str="data/LongHealth/dat
                         for answer_key in filter(lambda x: re.match(r"^answer_[a-z]$",x), question.keys()):
                             mq_answers += f"{question[answer_key]} "
 
-                        passages = break_text_into_passages('\n'.join(list(answer_docs.values())), 256)
+                        if task==1:
+                            passages = break_text_into_passages('\n'.join(list(answer_docs.values())), 256)
+                        elif task==2:
+                            passages = break_text_into_passages('\n'.join(list(answer_docs.values())+non_answer_docs), 256)
                         question_str = question['question']+' answers:'+ mq_answers
                         # only getting the first n relevant passages 
                         relevant_passages = get_relevant_passages(dpr_model, passages, question_str, n_passages=10)
@@ -223,9 +226,9 @@ def KILL():
 if __name__=="__main__":
     KILL()
     try:
-        calculate_dpr_sizes()
-        #run_inference(dpr=False)
-        #run_inference(dpr=True)
+        #calculate_dpr_sizes()
+        run_inference(task=3, dpr=False)
+        #run_inference(task=2, dpr=True)
     except Exception as e:
         print(f"Excepted! Killing all processes running on ports\n{e}")
     finally:

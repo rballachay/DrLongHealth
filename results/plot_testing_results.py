@@ -11,7 +11,7 @@ def remove_pattern(string):
     else:
         return 'F'
 
-def plot_task1(data_path='results/dpr', ground_truth='data/LongHealth/data/benchmark_v5.json'):
+def plot_task(data_path='results/task_1', ground_truth='data/LongHealth/data/benchmark_v5.json'):
     """
     task 1 is the problem of asking questions where the problem 
     may be positively answered according to the data in the document.
@@ -45,4 +45,4 @@ def plot_task1(data_path='results/dpr', ground_truth='data/LongHealth/data/bench
                 
 
 if __name__=="__main__":
-    plot_task1()
+    plot_task('results/task_3')
