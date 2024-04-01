@@ -104,7 +104,34 @@ def plot_prompt_lengths(data_path_root='results'):
     col="Task Number", kind="bar",palette="hls"
     )
     return plot.fig
-                
+
+
+def plot_training_loss(data_path='results/dpr_training.csv'):
+    results = pd.read_csv(data_path)
+
+    results_eval = results[filter(lambda x: x.startswith('eval') or x=='epoch',results.columns)]
+    results_eval = pd.melt(results_eval, id_vars=['epoch'], value_vars=['eval_acc_10','eval_acc_50','eval_acc_100'],value_name='% Accuracy',var_name='Top-k')
+    results_eval['% Accuracy']=100*results_eval['% Accuracy']
+    results_eval['Top-k']= results_eval['Top-k'].str.split('_').apply(lambda x: x[-1])
+    results_eval['Stage'] = 'Eval'
+
+    results_test = results[filter(lambda x: x.startswith('test') or x=='epoch',results.columns)]
+    
+    results_test = pd.melt(results_test, id_vars=['epoch'], value_vars=['test_acc_10','test_acc_50','test_acc_100'],value_name='% Accuracy',var_name='Top-k')
+    results_test['% Accuracy']=100*results_test['% Accuracy']
+    results_test['Top-k']= results_test['Top-k'].str.split('_').apply(lambda x: x[-1])
+    results_test['Stage'] = 'Test'
+
+    results_cat = pd.concat([results_test,results_eval]).reset_index(drop=True)
+    results_cat=results_cat.rename(columns={"epoch":"Epoch Number"})
+
+    plot = sns.relplot(
+    data=results_cat, x="Epoch Number", y="% Accuracy", 
+    col="Stage", kind="line",palette="hls", hue='Top-k'
+    )
+    return plot.fig
+    
+
 if __name__=="__main__":
     sns.set_theme()
     results_df = parse_tasks_jsons('results')
@@ -113,3 +140,6 @@ if __name__=="__main__":
 
     fig = plot_prompt_lengths()
     fig.savefig('results/prompt_lengths.png')
+
+    fig = plot_training_loss()
+    fig.savefig('results/training_accuracy.png')
