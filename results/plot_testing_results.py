@@ -3,6 +3,7 @@ import json
 import re 
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 def remove_pattern(string):
     pattern = r" The correct answer is [A-E]:"
@@ -121,6 +122,7 @@ def plot_training_loss(data_path='results/dpr_training.csv'):
     results_test['% Accuracy']=100*results_test['% Accuracy']
     results_test['Top-k']= results_test['Top-k'].str.split('_').apply(lambda x: x[-1])
     results_test['Stage'] = 'Test'
+    
 
     results_cat = pd.concat([results_test,results_eval]).reset_index(drop=True)
     results_cat=results_cat.rename(columns={"epoch":"Epoch Number"})
@@ -129,7 +131,11 @@ def plot_training_loss(data_path='results/dpr_training.csv'):
     data=results_cat, x="Epoch Number", y="% Accuracy", 
     col="Stage", kind="line",palette="hls", hue='Top-k'
     )
-    return plot.fig
+
+    fig,ax = plt.subplots()
+    results = results.rename(columns={"epoch":"Epoch Number","training_loss":"Training Loss"})
+    sns.lineplot(data=results,x="Epoch Number",y="Training Loss",ax=ax)
+    return plot.fig,fig
     
 
 if __name__=="__main__":
@@ -141,5 +147,6 @@ if __name__=="__main__":
     fig = plot_prompt_lengths()
     fig.savefig('results/prompt_lengths.png')
 
-    fig = plot_training_loss()
+    fig,fig2 = plot_training_loss()
     fig.savefig('results/training_accuracy.png')
+    fig2.savefig('results/training_loss.png')
