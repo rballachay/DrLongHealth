@@ -4,7 +4,7 @@ import json
 from tqdm import tqdm
 from data.LongHealth.utils import SYSTEM_PROMPT, create_prompt, query_model
 from src.utils import create_prompt_custom
-from models.dpr import DPRModel, get_relevant_passages
+from models.dpr import DPRModel, get_relevant_passages, get_relevant_indices
 from transformers import AutoTokenizer
 from psutil import process_iter
 from signal import SIGTERM # or SIGKILL
@@ -177,6 +177,7 @@ def calculate_dpr_sizes(task=1,data_path:str="data/LongHealth/data/benchmark_v5.
     dpr_model.load_state_dict(torch.load(dpr_path))
     
     results={'patient':[],'question':[],'l_prompt':[],'n_passages':[]}
+
     for idx, patient in tqdm(benchmark.items(), position=0):
             for i, question in tqdm(
                 enumerate(patient["questions"]),
@@ -185,7 +186,7 @@ def calculate_dpr_sizes(task=1,data_path:str="data/LongHealth/data/benchmark_v5.
                 total=len(patient["questions"]),
             ):
                 if task==1:
-                    answer_docs, non_answer_docs = get_task_1()
+                    answer_docs, non_answer_docs = get_task_1(patient, question)
                 elif task==2:
                     question["answer_f"] = "Question cannot be answered with provided documents"
                     non_answer_docs = sample_distractions(idx, benchmark, n=10)
@@ -226,10 +227,54 @@ def calculate_dpr_sizes(task=1,data_path:str="data/LongHealth/data/benchmark_v5.
                     results['n_passages'].append(n_passages)
                     results['l_prompt'].append(len(prompt))
 
-
     pd.DataFrame(results).to_csv(f'results/task_{task}/length_prompts.csv')
 
+
+def calculate_dpr_locs(task=1,data_path:str="data/LongHealth/data/benchmark_v5.json", dpr_path:str='models/dpr_training_best.pth'):
+    
+    with open(data_path, "r") as f:
+        benchmark = json.load(f)
+
+    dpr_model = DPRModel(256, "cuda:0").to("cuda:0")
+    dpr_model.load_state_dict(torch.load(dpr_path))
+    
+    results={'patient':[],'question':[],
+             'index':[], 'l_embedding':[], 'start_loc':[],
+             'length_doc':[]}
+
+    for idx, patient in tqdm(benchmark.items(), position=0):
+            for i, question in tqdm(
+                enumerate(patient["questions"]),
+                position=1,
+                leave=False,
+                total=len(patient["questions"]),
+            ):
                 
+                non_answer_docs = [
+                    text
+                    for text_id, text in patient["texts"].items()
+                ]
+                
+                mq_answers = ""
+                # remember this is multiple QA, going to convert to a single string 
+                for answer_key in filter(lambda x: re.match(r"^answer_[a-z]$",x), question.keys()):
+                    mq_answers += f"{question[answer_key]} "
+
+                passages = break_text_into_passages('\n'.join(list(non_answer_docs)), 256)
+
+                question_str = question['question']+' answers:'+ mq_answers
+
+                relevant_indices = get_relevant_indices(dpr_model, passages, question_str, n_passages=5)
+
+                for pass_num, index_num in enumerate(relevant_indices):
+                    results['patient'].append(idx)
+                    results['question'].append(question['No'])
+                    results['index'].append(pass_num)
+                    results['l_embedding'].append(len(passages[index_num]))
+                    results['start_loc'].append(sum([len(i) for i in passages[:index_num]]))
+                    results['length_doc'].append(''.join(non_answer_docs))
+
+    pd.DataFrame(results).to_csv(f'results/task_{task}/prompt_locations.csv')
 
 def KILL():
     for proc in process_iter():
@@ -243,12 +288,14 @@ def KILL():
 
 
 if __name__=="__main__":
-    KILL()
+    #KILL()
     try:
-        calculate_dpr_sizes(task=2)
+        calculate_dpr_locs()
+        #calculate_dpr_sizes(task=2)
         #run_inference(task=, dpr=False)
         #run_inference(task=3, dpr=True, n_passages=25)
     except Exception as e:
         print(f"Excepted! Killing all processes running on ports\n{e}")
     finally:
-        KILL()
+        #KILL()
+       pass

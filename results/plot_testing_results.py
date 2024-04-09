@@ -4,6 +4,9 @@ import re
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.ndimage import gaussian_filter1d, maximum_filter1d
+from copy import deepcopy
 
 def remove_pattern(string):
     pattern = r" The correct answer is [A-E]:"
@@ -136,10 +139,66 @@ def plot_training_loss(data_path='results/dpr_training.csv'):
     results = results.rename(columns={"epoch":"Epoch Number","training_loss":"Training Loss"})
     sns.lineplot(data=results,x="Epoch Number",y="Training Loss",ax=ax)
     return plot.fig,fig
+
+diagnosis_map={'DLBCL':'Non−Hodgkin\'s Lymphoma','Multiple Myeloma':'Myeloma',
+               'AML':'Acute Myeloid Leukemia','ARDS':'Acute Respiratory Distress Syndrome',
+               'Breast carcinoma':'Breast Cancer','Cerebral glioblastoma':'Glioblastoma'}
+def plot_answer_locations(data_path='results/task_1/prompt_locations.csv', ground_truth='data/LongHealth/data/benchmark_v5.json'):
+    data = pd.read_csv(data_path)
+
+    with open(ground_truth, "r") as f:
+        benchmark = json.load(f)
     
+    patient_to_condition = {key:benchmark[key]['diagnosis'] for key in benchmark}
+
+    for key, value in patient_to_condition.items():
+        for oldname,newname in diagnosis_map.items():
+            if value==oldname:
+                patient_to_condition[key]=newname
+
+
+    fig, ax = plt.subplots(20,1,dpi=200)
+    results={}
+    for _, (_, df_patient) in enumerate(data.groupby(['patient'])):
+        stacks = []
+        for _, row in df_patient.iterrows():
+            new_row = np.zeros(row.length_doc)
+            new_row[row.start_loc:row.start_loc+row.l_embedding] = 1
+            stacks.append(new_row)
+        
+        stacks = np.sum(np.stack(stacks,axis=1),axis=1)
+        stacks = maximum_filter1d(stacks, 256)
+        stacks = gaussian_filter1d(stacks, 256)
+        stacks = sum_every_n_elements(stacks,int(row.length_doc/512))
+        stacks = 1-((np.tile(stacks,(50,1)))/np.max(stacks))
+
+        results[patient_to_condition[row.patient]] = deepcopy(stacks)
+
+    results = dict(sorted(results.items()))
+
+    fig, ax = plt.subplots(20,1,figsize=(5,20))
+    for i, (diagnosis, image) in enumerate(results.items()):
+        ax[i].axis('off')
+        ax[i].imshow(image, cmap='RdYlBu')
+        ax[i].set_title(diagnosis)
+
+    plt.tight_layout() 
+    #plt.suptitle("Distribution of Answer−Relevant Text Segments", fontsize=12) 
+    fig.savefig('results/passage_location_plot.png')
+
+def sum_every_n_elements(arr, n):
+    # Reshape the array to have n rows and reshape to accomodate any excess elements
+    reshaped_arr = arr[:len(arr)//n*n].reshape(-1, n)
+    # Sum along the axis 1 to get the sum of every n elements
+    sums = np.sum(reshaped_arr, axis=1)
+    return sums
+
+
+
 
 if __name__=="__main__":
     sns.set_theme()
+    '''
     results_df = parse_tasks_jsons('results')
     fig = plot_results(results_df)
     fig.savefig('results/accuracy_by_model.png')
@@ -150,3 +209,5 @@ if __name__=="__main__":
     fig,fig2 = plot_training_loss()
     fig.savefig('results/training_accuracy.png')
     fig2.savefig('results/training_loss.png')
+    '''
+    fig = plot_answer_locations()
