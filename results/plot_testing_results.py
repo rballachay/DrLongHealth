@@ -191,6 +191,16 @@ def plot_answer_locations(data_path='results/task_1/prompt_locations.csv', groun
     #plt.suptitle("Distribution of Answer−Relevant Text Segments", fontsize=12) 
     return fig
 
+def plot_inference_time(data_path='results/task_1/timed_model.csv'):
+    df = pd.read_csv(data_path,sep='\t')
+
+    plot = sns.catplot(
+    data=df, x="Model", y="Inference Time (s)",
+    kind="bar",hue="DPR",palette="hls"
+    )
+    plt.tight_layout() 
+    return plot.fig
+
 def sum_every_n_elements(arr, n):
     # Reshape the array to have n rows and reshape to accomodate any excess elements
     reshaped_arr = arr[:len(arr)//n*n].reshape(-1, n)
@@ -201,11 +211,10 @@ def sum_every_n_elements(arr, n):
 
 if __name__=="__main__":
     sns.set_theme()
-
+    '''
     results_df = parse_tasks_jsons('results')
     fig = plot_results(results_df)
     fig.savefig('results/accuracy_by_model.png')
-    '''
     fig = plot_prompt_lengths()
     fig.savefig('results/prompt_lengths.png')
 
@@ -216,4 +225,7 @@ if __name__=="__main__":
     fig = plot_answer_locations()
     fig.savefig('results/passage_location_plot.png')
     '''
+
+    fig = plot_inference_time()
+    fig.savefig('results/inference_time_results.png',dpi=100)
 
