@@ -27,8 +27,6 @@ Code for COMP545 Project: LLM modelling of LongHealth Clinical Notes. This proje
 - Use API's to provide us a baseline and ensure we are doing it propery
 
 ## Training Data
-I think we should use the following dataset: 
-
 We use the emrQA dataset, which contains the clinical documents of 258 patients, with a total of approximately 223k QA pairs. The original emrQA dataset only contains questions and answers, however, since we want to train our models with multiple choices, we generated distractors for each question.
 
 ## Part 1: Retriever-reader method
