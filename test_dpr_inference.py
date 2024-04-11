@@ -14,16 +14,23 @@ from src.utils import break_text_into_passages
 import re
 import pandas as pd
 import random
+import time 
+
+DOTIME = True
 
 # these are the models from hugging face we have decided to use
-MODEL_LIST = ['mistralai/Mistral-7B-Instruct-v0.2'] #'mistralai/Mistral-7B-Instruct-v0.2',
+MODEL_LIST = ['lmsys/vicuna-7b-v1.5-16k'] #'mistralai/Mistral-7B-Instruct-v0.2',
 
 URL = "http://localhost:8000/v1/chat/completions"
 
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def run_inference(task:int=1, dpr:bool=False, n_passages:int=25, data_path:str="data/LongHealth/data/benchmark_v5.json", outdir:str='results', max_len=16_000, dpr_path:str='models/dpr_training_best.pth'):
-    
+    epoch = int(time.time())
+
+    with open(f'{epoch}_time_logs.txt', 'a') as file:
+        file.write('Task\tDPR\tQuestion\tModel\tTime Elapsed\n')
+
     if task not in [1,2,3]:
         raise Exception("Task must be one of {1,2,3}")
     
@@ -58,7 +65,7 @@ def run_inference(task:int=1, dpr:bool=False, n_passages:int=25, data_path:str="
 
         if not os.path.exists(outdir):
             os.mkdir(outdir)
-        if os.path.exists(path):
+        if (not DOTIME) and os.path.exists(path):
             with open(path, "r") as f:
                 eval_results = json.load(f)
         else:
@@ -66,6 +73,8 @@ def run_inference(task:int=1, dpr:bool=False, n_passages:int=25, data_path:str="
 
         max_len = max_len - len(tokenizer.encode(SYSTEM_PROMPT))
 
+
+        question_idx = 0
         for idx, patient in tqdm(benchmark.items(), position=0):
             patient_results = {}
             if idx in eval_results.keys():
@@ -76,12 +85,14 @@ def run_inference(task:int=1, dpr:bool=False, n_passages:int=25, data_path:str="
                 leave=False,
                 total=len(patient["questions"]),
             ):
+                time_start = time.time()
+
                 if patient_results.get(f"question_{i}"):
                     continue
                 
                 if task==1:
                     patient_results[f"question_{i}"] = {"correct": question["correct"]}
-                    answer_docs, non_answer_docs = get_task_1()
+                    answer_docs, non_answer_docs = get_task_1(patient, question)
                 elif task==2:
                     question["answer_f"] = "Question cannot be answered with provided documents"
                     non_answer_docs = sample_distractions(idx, benchmark, n=10)
@@ -135,9 +146,18 @@ def run_inference(task:int=1, dpr:bool=False, n_passages:int=25, data_path:str="
                     choice = response.json()["choices"][0]
                     patient_results[f"question_{i}"][f"answer_{j}"] = choice["message"]["content"]
                     patient_results[f"question_{i}"][f"answer_{j}_locations"] = answer_location
-            eval_results[idx] = patient_results
-            with open(path, "w+") as f:
-                json.dump(eval_results, f)
+
+                    time_elapsed = time.time()-time_start
+
+                    with open(f'{epoch}_time_logs.txt', 'a') as file:
+                        file.write(f'{task}\t{dpr}\t{question_idx}\t{model}\t{time_elapsed:.2f}\n')
+
+                    question_idx+=1
+
+            if not DOTIME:
+                eval_results[idx] = patient_results
+                with open(path, "w+") as f:
+                    json.dump(eval_results, f)
 
 
         process.terminate()
@@ -290,12 +310,12 @@ def KILL():
 if __name__=="__main__":
     #KILL()
     try:
-        calculate_dpr_locs()
+        #calculate_dpr_locs()
         #calculate_dpr_sizes(task=2)
-        #run_inference(task=, dpr=False)
+        run_inference(task=1, dpr=False, n_passages=10)
         #run_inference(task=3, dpr=True, n_passages=25)
     except Exception as e:
         print(f"Excepted! Killing all processes running on ports\n{e}")
     finally:
-        #KILL()
+        #KILL()a
        pass
