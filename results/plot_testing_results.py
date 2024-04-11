@@ -79,10 +79,14 @@ def plot_results(results_df):
                  "task":"Task Number",
                  "accuracy":"Accuracy (%)"
                  })
+    
+    results_df['Num. passages'] =  results_df['Num. passages'].astype(str)
+    
+    results_df=results_df.sort_values(by=["Num. passages"])
         
     plot = sns.catplot(
-    data=results_df, x="Chat Model", y="Accuracy (%)", col="Task Number",
-    kind="bar",hue="Num. passages",palette="hls"
+    data=results_df, x="Chat Model", y="Accuracy (%)", row="Task Number",
+    kind="bar",hue="Num. passages",palette="hls", height=4
     )
     return plot.fig
 
@@ -143,6 +147,7 @@ def plot_training_loss(data_path='results/dpr_training.csv'):
 diagnosis_map={'DLBCL':'Non−Hodgkin\'s Lymphoma','Multiple Myeloma':'Myeloma',
                'AML':'Acute Myeloid Leukemia','ARDS':'Acute Respiratory Distress Syndrome',
                'Breast carcinoma':'Breast Cancer','Cerebral glioblastoma':'Glioblastoma'}
+
 def plot_answer_locations(data_path='results/task_1/prompt_locations.csv', ground_truth='data/LongHealth/data/benchmark_v5.json'):
     data = pd.read_csv(data_path)
 
@@ -184,7 +189,7 @@ def plot_answer_locations(data_path='results/task_1/prompt_locations.csv', groun
 
     plt.tight_layout() 
     #plt.suptitle("Distribution of Answer−Relevant Text Segments", fontsize=12) 
-    fig.savefig('results/passage_location_plot.png')
+    return fig
 
 def sum_every_n_elements(arr, n):
     # Reshape the array to have n rows and reshape to accomodate any excess elements
@@ -194,20 +199,21 @@ def sum_every_n_elements(arr, n):
     return sums
 
 
-
-
 if __name__=="__main__":
     sns.set_theme()
-    '''
+
     results_df = parse_tasks_jsons('results')
     fig = plot_results(results_df)
     fig.savefig('results/accuracy_by_model.png')
-
+    '''
     fig = plot_prompt_lengths()
     fig.savefig('results/prompt_lengths.png')
 
     fig,fig2 = plot_training_loss()
-    fig.savefig('results/training_accuracy.png')
+    #fig.savefig('results/training_accuracy.png')
     fig2.savefig('results/training_loss.png')
-    '''
+
     fig = plot_answer_locations()
+    fig.savefig('results/passage_location_plot.png')
+    '''
+
