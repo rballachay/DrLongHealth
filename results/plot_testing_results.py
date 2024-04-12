@@ -162,7 +162,6 @@ def plot_answer_locations(data_path='results/task_1/prompt_locations.csv', groun
                 patient_to_condition[key]=newname
 
 
-    fig, ax = plt.subplots(20,1,dpi=200)
     results={}
     for _, (_, df_patient) in enumerate(data.groupby(['patient'])):
         stacks = []
@@ -175,13 +174,13 @@ def plot_answer_locations(data_path='results/task_1/prompt_locations.csv', groun
         stacks = maximum_filter1d(stacks, 256)
         stacks = gaussian_filter1d(stacks, 256)
         stacks = sum_every_n_elements(stacks,int(row.length_doc/512))
-        stacks = 1-((np.tile(stacks,(50,1)))/np.max(stacks))
+        stacks = 1-((np.tile(stacks,(30,1)))/np.max(stacks))
 
         results[patient_to_condition[row.patient]] = deepcopy(stacks)
 
     results = dict(sorted(results.items()))
 
-    fig, ax = plt.subplots(20,1,figsize=(5,20))
+    fig, ax = plt.subplots(20,1,figsize=(5,12))
     for i, (diagnosis, image) in enumerate(results.items()):
         ax[i].axis('off')
         ax[i].imshow(image, cmap='RdYlBu')
@@ -226,6 +225,9 @@ if __name__=="__main__":
     fig.savefig('results/passage_location_plot.png')
     '''
 
-    fig = plot_inference_time()
-    fig.savefig('results/inference_time_results.png',dpi=100)
+    fig = plot_answer_locations()
+    fig.savefig('results/passage_location_plot.png')
+
+    #fig = plot_inference_time()
+    #fig.savefig('results/inference_time_results.png',dpi=100)
 
